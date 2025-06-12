@@ -16,20 +16,36 @@ function App() {
     setMessages(prev => [...prev, userMessage])
     setInput('')
 
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
-      },
-      body: JSON.stringify({
-        model: 'gpt-3.5-turbo',
-        messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages, userMessage],
-      }),
-    })
+const response = await fetch('https://api.openai.com/v1/chat/completions', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    Authorization: `Bearer ${import.meta.env.VITE_OPENAI_API_KEY}`,
+  },
+  body: JSON.stringify({
+    model: 'gpt-3.5-turbo',
+    messages: [{ role: 'system', content: SYSTEM_PROMPT }, ...messages, userMessage],
+  }),
+})
 
-    const data = await response.json()
-    const botMessage = data.choices[0].message
+// Handle OpenAI errors like 429, 401, etc.
+if (!response.ok) {
+  const errorText = await response.text()
+  console.error("OpenAI API error:", errorText)
+  setMessages(prev => [...prev, { role: 'assistant', content: "Sorry, I’m having trouble right now. Please try again in a few moments." }])
+  return
+}
+
+const data = await response.json()
+if (!data.choices || !data.choices[0]) {
+  setMessages(prev => [...prev, { role: 'assistant', content: "Oops, I didn’t get that. Try again?" }])
+  return
+}
+
+const botMessage = data.choices[0].message
+setMessages(prev => [...prev, botMessage])
+speak(botMessage.content)
+
     setMessages(prev => [...prev, botMessage])
     speak(botMessage.content)
   }
